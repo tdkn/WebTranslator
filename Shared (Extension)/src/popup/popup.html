@@ -43,9 +43,12 @@
           <label class="form-label text-small text-bold" for="language-select" id="language-select-label">
             Which language do you want to translate into?
           </label>
-          <select class="form-select" id="language-select"></select>
+          <div class="input-group text-small" id="language-select">
+            <select class="form-select select-sm" id="source-language-select"></select>
+            <span class="input-group-addon addon-sm">&#x2192</span>
+            <select class="form-select select-sm" id="target-language-select"></select>
+          </div>
         </div>
-
         <div class="py-2">
           <button class="btn btn-primary btn-block" id="translate-button">Translate</button>
         </div>

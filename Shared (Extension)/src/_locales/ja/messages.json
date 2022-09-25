@@ -42,6 +42,9 @@
   "full_page_translation_ongoing_translation": {
     "message": "翻訳しています"
   },
+  "ui_source_language_auto": {
+    "message": "自動検出"
+  },
   "supported_languages_BG": {
     "description": "Name of language",
     "message": "ブルガリア語"

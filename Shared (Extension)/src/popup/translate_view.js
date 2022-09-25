@@ -4,9 +4,11 @@ import { supportedLanguages } from "./supported_languages";
 
 export class TranslateView extends EventTarget {
   #languageSelectLabel;
-  #languageSelect;
-  #translateButton;
 
+  #sourceLanguageSelect;
+  #targetLanguageSelect;
+
+  #translateButton;
   #showOriginalButton;
 
   constructor() {
@@ -21,7 +23,7 @@ export class TranslateView extends EventTarget {
         (supportedLanguage) => supportedLanguage.code === language.toUpperCase()
       )
     ) {
-      this.#languageSelect.value = language;
+      this.#targetLanguageSelect.value = language;
     }
   }
 
@@ -35,11 +37,13 @@ export class TranslateView extends EventTarget {
     if (loading) {
       this.showInitialView();
 
-      this.#languageSelect.disabled = true;
+      this.#sourceLanguageSelect.disabled = true;
+      this.#targetLanguageSelect.disabled = true;
       this.#translateButton.disabled = true;
       this.#translateButton.classList.add("loading");
     } else {
-      this.#languageSelect.disabled = false;
+      this.#sourceLanguageSelect.disabled = false;
+      this.#targetLanguageSelect.disabled = false;
       this.#translateButton.disabled = false;
       this.#translateButton.classList.remove("loading");
     }
@@ -74,24 +78,41 @@ export class TranslateView extends EventTarget {
       "ui_target_language_select"
     );
 
+    this.#sourceLanguageSelect = document.getElementById(
+      "source-language-select"
+    );
+    this.#sourceLanguageSelect.add(
+      new Option(browser.i18n.getMessage("ui_source_language_auto"), "auto"),
+      undefined,
+      true,
+      true
+    );
+    this.#targetLanguageSelect = document.getElementById(
+      "target-language-select"
+    );
     const locale = browser.i18n
       .getUILanguage()
       .split("-")
       .shift()
       .toUpperCase();
-    this.#languageSelect = document.getElementById("language-select");
     for (const supportedLanguage of supportedLanguages) {
-      const option = new Option(
-        browser.i18n.getMessage(
-          `supported_languages_${supportedLanguage.code}`
-        ),
-        supportedLanguage.code,
-        false,
-        supportedLanguage.code === locale
-      );
-      this.#languageSelect.add(option);
+      const createOption = (code, selected) => {
+        return new Option(
+          browser.i18n.getMessage(`supported_languages_${code}`),
+          code,
+          false,
+          selected
+        );
+      };
+      const code = supportedLanguage.code;
+      this.#sourceLanguageSelect.add(createOption(code, false));
+      this.#targetLanguageSelect.add(createOption(code, code === locale));
     }
-    this.#languageSelect.addEventListener(
+    this.#sourceLanguageSelect.addEventListener(
+      "change",
+      this.#onLanguageSelectChange.bind(this)
+    );
+    this.#targetLanguageSelect.addEventListener(
       "change",
       this.#onLanguageSelectChange.bind(this)
     );
@@ -120,7 +141,7 @@ export class TranslateView extends EventTarget {
       new CustomEvent("change", {
         detail: {
           selectedSourceLanguage: undefined,
-          selectedTargetLanguage: this.#languageSelect.value,
+          selectedTargetLanguage: this.#targetLanguageSelect.value,
         },
       })
     );
@@ -130,8 +151,8 @@ export class TranslateView extends EventTarget {
     this.dispatchEvent(
       new CustomEvent("translate", {
         detail: {
-          sourceLanguage: undefined,
-          targetLanguage: this.#languageSelect.value,
+          sourceLanguage: this.#sourceLanguageSelect.value,
+          targetLanguage: this.#targetLanguageSelect.value,
         },
       })
     );

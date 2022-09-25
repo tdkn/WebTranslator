@@ -42,6 +42,9 @@
   "full_page_translation_ongoing_translation": {
     "message": "Translation in progress"
   },
+  "ui_source_language_auto": {
+    "message": "Auto Detect"
+  },
   "supported_languages_BG": {
     "description": "Name of language",
     "message": "Bulgarian"
