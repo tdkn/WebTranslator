@@ -75,6 +75,28 @@ class App {
   }
 
   async #translateSelection(selectionText) {
+    const results = await browser.tabs.executeScript({
+      code: `if (!window.customElements.get("translate-popover")) { true; }`,
+    });
+    if (results && results[0]) {
+      await browser.tabs.executeScript({
+        file: "/translate_ui.js",
+      });
+    }
+
+    const tabs = await browser.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
+    const response = await browser.tabs.sendMessage(tabs[0].id, {
+      method: "ping",
+    });
+    if (!response) {
+      await browser.tabs.executeScript({
+        file: "/translate.js",
+      });
+    }
+
     this.#selectionText = selectionText;
     const targetLanguage = await getTargetLanguage();
 

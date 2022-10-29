@@ -1,16 +1,11 @@
 "use strict";
 
-import { Popover } from "./popover";
-import { Tooltip } from "./tooltip";
-import { Toast } from "./toast";
-
 import {
   isVisible,
   hasTextNode,
   hasInlineElement,
   once,
   scrollDidStop,
-  isTouchDevice,
 } from "./utils";
 
 class App {
@@ -20,30 +15,13 @@ class App {
   #originalTexts = {};
   #translatedTexts = {};
 
-  #toast = new Toast();
+  #toast = undefined;
 
   #isProcessing = false;
   #shouldProcessAfterScrolling = false;
   #isShowingOriginal = false;
 
-  constructor() {
-    this.#init();
-  }
-
-  #init() {
-    if (!window.customElements.get("translate-popover")) {
-      window.customElements.define("translate-popover", Popover);
-    }
-    if (!window.customElements.get("translate-button")) {
-      window.customElements.define("translate-button", Tooltip);
-    }
-    this.#setupListeners();
-    if (isTouchDevice()) {
-      this.#observeTextSelection();
-    }
-  }
-
-  #setupListeners() {
+  setup() {
     browser.runtime.onMessage.addListener(
       async (request, sender, sendResponse) => {
         if (!request) {
@@ -109,8 +87,8 @@ class App {
             const x = selectionRect.left + window.scrollX;
             const y = selectionRect.bottom + window.scrollY + 30;
 
-            const position = this.#getExistingPopoverPosition();
-            const popover = this.#createPopover(position || { x, y });
+            const position = getExistingPopoverPosition();
+            const popover = createPopover(position || { x, y });
             popover.setAttribute("loading", true);
 
             sendResponse();
@@ -142,13 +120,6 @@ class App {
             sendResponse();
             break;
           }
-          case "getSelection": {
-            const selection = window.getSelection();
-            sendResponse({
-              result: selection ? selection.toString() : undefined,
-            });
-            break;
-          }
           case "ping": {
             sendResponse({ result: "pong" });
             break;
@@ -160,148 +131,6 @@ class App {
         }
       }
     );
-  }
-
-  #observeTextSelection() {
-    document.addEventListener("pointerup", async (event) => {
-      event.preventDefault();
-
-      const selection = window.getSelection();
-      const selectionText = selection ? selection.toString().trim() : "";
-      if (!selectionText && !selection.rangeCount) {
-        this.#removeTooltip();
-        return;
-      }
-
-      setTimeout(() => {
-        const textRange = selection.getRangeAt(0).cloneRange();
-        textRange.collapse(selection.anchorOffset > selection.focusOffset);
-        const selectionRect = textRange.getBoundingClientRect();
-
-        const x = selectionRect.right + window.scrollX - 20;
-        const y = selectionRect.bottom + window.scrollY + 40;
-
-        {
-          const selection = window.getSelection();
-          if (!selection || !selection.toString().trim()) {
-            this.#removeTooltip();
-            return;
-          }
-        }
-
-        const tooltip = this.#createTooltip({ x, y });
-        tooltip.addEventListener("tooltipClick", (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-
-          if (selectionText) {
-            const request = {
-              method: "translateSelection",
-              selectionText,
-            };
-            browser.runtime.sendMessage(request);
-          }
-          tooltip.remove();
-
-          return false;
-        });
-      }, 100);
-    });
-  }
-
-  #createTooltip(position) {
-    const id = "translate-button";
-    {
-      const tooltip = document.getElementById(id);
-      if (tooltip) {
-        tooltip.remove();
-      }
-    }
-
-    document.body.insertAdjacentHTML(
-      "beforeend",
-      `<translate-button id="${id}"></translate-button>`
-    );
-    const tooltip = document.getElementById(id);
-    tooltip.setAttribute("position", JSON.stringify(position));
-
-    document.addEventListener(
-      "touchstart",
-      (event) => {
-        if (event.target.closest(id)) {
-          return;
-        }
-        tooltip.remove();
-      },
-      { once: true }
-    );
-
-    return tooltip;
-  }
-
-  #removeTooltip() {
-    const id = "translate-button";
-    const tooltip = document.getElementById(id);
-    if (tooltip) {
-      tooltip.remove();
-    }
-  }
-
-  #createPopover(position) {
-    const id = "translate-popover";
-    {
-      const popover = document.getElementById(id);
-      if (popover) {
-        popover.remove();
-      }
-    }
-
-    document.body.insertAdjacentHTML(
-      "beforeend",
-      `<translate-popover id="${id}"></translate-popover>`
-    );
-    const popover = document.getElementById(id);
-    popover.setAttribute("position", JSON.stringify(position));
-
-    const onClick = (event) => {
-      if (event.target.closest(id)) {
-        return;
-      }
-      popover.remove();
-      document.removeEventListener("click", onClick);
-    };
-
-    document.addEventListener("click", onClick);
-    popover.addEventListener("close", async () => {
-      popover.remove();
-      document.removeEventListener("click", onClick);
-    });
-    popover.addEventListener("change", async (event) => {
-      if (!event.detail) {
-        return;
-      }
-      await browser.storage.local.set({
-        selectedSourceLanguage: undefined,
-        selectedTargetLanguage: event.detail.selectedTargetLanguage,
-      });
-
-      const request = {
-        method: "translateSelection",
-        selectionText: undefined,
-      };
-      browser.runtime.sendMessage(request);
-    });
-
-    return popover;
-  }
-
-  #getExistingPopoverPosition() {
-    const id = "translate-popover";
-    const popover = document.getElementById(id);
-    if (popover) {
-      return popover.getPosition();
-    }
-    return undefined;
   }
 
   async #translatePage(request) {
@@ -364,7 +193,8 @@ class App {
   }
 
   #startTranslation() {
-    this.#toast.show();
+    this.#toast = createToast();
+    this.#toast.setAttribute("show", true);
 
     this.#isProcessing = true;
     this.#isShowingOriginal = false;
@@ -388,7 +218,7 @@ class App {
 
   #finishTranslation() {
     this.#isProcessing = false;
-    this.#toast.dismiss();
+    this.#toast.setAttribute("dismiss", true);
 
     browser.runtime.sendMessage({
       method: "finishTranslation",
@@ -443,4 +273,79 @@ function splitElements(elements, storage) {
   }
 }
 
-new App();
+function createToast() {
+  const id = "translate-toast";
+  {
+    const toast = document.getElementById(id);
+    if (toast) {
+      toast.remove();
+    }
+  }
+
+  document.body.insertAdjacentHTML(
+    "beforeend",
+    `<translate-toast id="${id}"></translate-toast>`
+  );
+  const toast = document.getElementById(id);
+  return toast;
+}
+
+function createPopover(position) {
+  const id = "translate-popover";
+  {
+    const popover = document.getElementById(id);
+    if (popover) {
+      popover.remove();
+    }
+  }
+
+  document.body.insertAdjacentHTML(
+    "beforeend",
+    `<translate-popover id="${id}"></translate-popover>`
+  );
+  const popover = document.getElementById(id);
+  popover.setAttribute("position", JSON.stringify(position));
+
+  const onClick = (event) => {
+    if (event.target.closest(id)) {
+      return;
+    }
+    popover.remove();
+    document.removeEventListener("click", onClick);
+  };
+
+  document.addEventListener("click", onClick);
+  popover.addEventListener("close", async () => {
+    popover.remove();
+    document.removeEventListener("click", onClick);
+  });
+  popover.addEventListener("change", async (event) => {
+    if (!event.detail) {
+      return;
+    }
+    await browser.storage.local.set({
+      selectedSourceLanguage: undefined,
+      selectedTargetLanguage: event.detail.selectedTargetLanguage,
+    });
+
+    const request = {
+      method: "translateSelection",
+      selectionText: undefined,
+    };
+    browser.runtime.sendMessage(request);
+  });
+
+  return popover;
+}
+
+function getExistingPopoverPosition() {
+  const id = "translate-popover";
+  const popover = document.getElementById(id);
+  if (popover) {
+    return popover.getPosition();
+  }
+  return undefined;
+}
+
+const app = new App();
+app.setup();

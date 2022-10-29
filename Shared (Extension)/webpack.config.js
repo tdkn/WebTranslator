@@ -10,6 +10,8 @@ module.exports = {
   entry: {
     background: "./src/background/background.js",
     content: "./src/content/content.js",
+    translate: "./src/content/translate.js",
+    translate_ui: "./src/content/translate_ui.js",
     popup: "./src/popup/popup.js",
   },
   output: {
@@ -53,7 +55,14 @@ module.exports = {
           },
         },
         { from: "./src/images/*.*", to: "images/[name][ext]" },
-        { from: "./src/manifest.json", to: "[name][ext]" },
+        {
+          from: "./src/manifest_ios.json",
+          to: path.resolve(__dirname, "../iOS (Extension)/manifest[ext]"),
+        },
+        {
+          from: "./src/manifest_mac.json",
+          to: path.resolve(__dirname, "../macOS (Extension)/manifest[ext]"),
+        },
         {
           from: "@nordhealth/themes/lib/nord.css",
           to: "assets/[name][ext]",

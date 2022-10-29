@@ -5,8 +5,13 @@ import "@nordhealth/components/lib/Stack";
 import "@nordhealth/components/lib/Toast";
 import "@nordhealth/components/lib/ToastGroup";
 
-export class Toast {
+export class Toast extends HTMLElement {
   #toastStack = [];
+
+  constructor() {
+    super();
+    this.shadow = this.attachShadow({ mode: "open" });
+  }
 
   show() {
     if (this.#toastStack.length === 0) {
@@ -18,17 +23,33 @@ export class Toast {
     this.#toastStack.push(true);
   }
 
-  close() {
+  dismiss() {
     if (this.#toastStack.length === 1) {
       dismissToast();
     }
     this.#toastStack.pop();
   }
+
+  static get observedAttributes() {
+    console.log("observedAttributes");
+    return ["show", "dismiss"];
+  }
+
+  attributeChangedCallback(name, oldValue, newValue) {
+    console.log("attributeChangedCallback");
+    switch (name) {
+      case "show":
+        this.show();
+        break;
+      case "dismiss":
+        this.dismiss();
+        break;
+    }
+  }
 }
 
 function createToastGroup() {
   const id = "nord-toast-group";
-
   {
     const group = document.getElementById(id);
     if (group) {
